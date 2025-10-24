@@ -18,6 +18,8 @@ void *addition(void* args){
 
     printf("Addition de %d et de %d : %d\n", a, b, x);
 
+	/* Fermeture propre et retour du code d'erreur*/
+
     pthread_exit(ret1);
 }
 
@@ -35,8 +37,12 @@ void *multiplication(void* args) {
 
     printf("Multiplication de %d et de %d : %d\n", a, b, x);
 
+	/* Fermeture propre et retour du code d'erreur*/
+	
     pthread_exit(ret1);
 }
+
+/* Fonction principale */
 
 
 int main (){
@@ -53,8 +59,12 @@ pthread_create(&t_addition, NULL, addition, args);
 pthread_t t_multiplication;
 pthread_create(&t_multiplication, NULL, multiplication, args);
 
+/* Rejoindre les threads */
+
 pthread_join(t_addition, &ret1);
 pthread_join(t_multiplication, &ret2);
+
+/* Affichage du code de retour */
 
 printf("Le thread t_addition a retourné %d\n", ret1);
 printf("Le thread t_multiplication a retourné %d\n", ret2);
