@@ -44,7 +44,6 @@ void *multiplication(void* args) {
 
 /* Fonction principale */
 
-
 int main (){
 
 int args[2] = {6,7};
