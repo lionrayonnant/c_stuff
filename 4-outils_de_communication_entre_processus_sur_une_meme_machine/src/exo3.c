@@ -11,16 +11,16 @@ int pipe1[2];
 
 int f_nb1;
 int f_nb2;
-char f_nb1c[10];
-char f_nb2c[10];
-char f_sumc[11];
+char f_nb1c[9];
+char f_nb2c[9];
+char f_sumc[10];
 
 int c_nb1;
 int c_nb2;
 int c_sum;
-char c_nb1c[10];
-char c_nb2c[10];
-char c_sumc[11];
+char c_nb1c[9];
+char c_nb2c[9];
+char c_sumc[10];
 
 /* Initiate pipe */
 
