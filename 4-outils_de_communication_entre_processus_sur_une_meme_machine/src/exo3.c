@@ -48,6 +48,7 @@ close(pipe1[1]);
 
 exit(0);
 }
+else{
 /* Ask for user input */
 
 printf("Bienvenue dans le programme d'addition en C.\n");
@@ -75,5 +76,5 @@ read(pipe1[0],f_sumc,10);
 close(pipe1[0]);
 
 printf("Somme de vos deux valeurs : %s\n", f_sumc);
-
+}
 }
