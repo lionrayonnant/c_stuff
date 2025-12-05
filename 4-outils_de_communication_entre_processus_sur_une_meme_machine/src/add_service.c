@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -32,4 +34,8 @@ int main() {
 
     close(tub1);
     close(tub2);
+
+    unlink("tub1");
+    unlink("tub2");
+
 }
