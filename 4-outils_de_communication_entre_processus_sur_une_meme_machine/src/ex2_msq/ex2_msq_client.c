@@ -4,7 +4,7 @@
 #include <sys/msg.h>
 #include <sys/wait.h>
 
-key_t cle = 100;
+key_t cle;
 
 /* Globals */
 
@@ -44,55 +44,95 @@ int add(){
 	struct response_add add1_resp;
         add1.mtype = 1;
         printf("Please give A :\n");
-        scanf("%d", &add1.a);
+        scanf("%ld", &add1.a);
         printf("Please give B :\n");
-        scanf("%d", &add1.b);
-        printf("You gave %d and %d\n",add1.a, add1.b);
+        scanf("%ld", &add1.b);
+        printf("You gave %ld and %ld\n",add1.a, add1.b);
 	add1.pid_client = my_pid;
         /* Send request to the server */
 
         if (msgsnd(msqid, &add1, sizeof(add1) - sizeof(add1.mtype), 0) == -1 ) {
                 perror("msgsnd");
                 exit(EXIT_FAILURE);
-        }
+
+	}
 
         /* Wait for response from the server */
 
-        if (msgrcv(msqid, &add1_resp, sizeof(add1_resp) - sizeof(add1_resp), my_pid, 0) == -1 ) {
+        if (msgrcv(msqid, &add1_resp, sizeof(add1_resp) - sizeof(add1_resp.mtype), my_pid, 0) == -1 ) {
+                perror("msgrcv");
+                exit(EXIT_FAILURE);
+        }
+
+        /* Return response */
+
+	return add1_resp.result;
+
+        };
+
+int mul() {
+
+	struct mul mul1;
+        struct response_mul mul1_resp;
+        mul1.mtype = 1;
+        printf("Please give A :\n");
+        scanf("%f", &mul1.a);
+        printf("Please give B :\n");
+        scanf("%f", &mul1.b);
+	printf("Please give C :\n");
+	scanf("%f", &mul1.c);
+        printf("You gave %f, %f and %f\n",mul1.a, mul1.b, mul1.c);
+        mul1.pid_client = my_pid;
+        /* Send request to the server */
+
+        if (msgsnd(msqid, &mul1, sizeof(mul1) - sizeof(mul1.mtype), 0 ) == -1) {
+                perror("msgsnd");
+                exit(EXIT_FAILURE);
+
+        }
+
+	/* Wait for response from the server */
+
+        if (msgrcv(msqid, &mul1_resp, sizeof(mul1_resp) - sizeof(mul1_resp.mtype), my_pid, 0 ) == -1 ) {
                 perror("msgrcv");
                 exit(EXIT_FAILURE);
         }
 
         /* Print response */
 
-        printf("Result : %d\n",add1_resp.result);
+        return mul1_resp.result;
 
-        };
-
-int mul() {
-
-};
+	};
 
 /* Main loop */
 
 int main() {
 
-my_pid = getpid();
-printf("My PID : %d",my_pid);
-
-int msqid = msgget(cle,0);
-
 int choice;
+long add_result;
+float mul_result;
 
-printf("Welcome. Please select 'add' or 'mul' :\n [0] : add\n [1] : mul");
-scanf("%d",choice);
+my_pid = getpid();
+printf("My PID : %d\n",my_pid);
+
+printf("MSQ id : %d\n",msqid);
+
+printf("Welcome. Please select 'add' or 'mul' :\n [0] : add\n [1] : mul\n");
+scanf("%d",&choice);
 
 switch(choice) {
 	case 0:
-	add();
+	cle = 100;
+	msqid = msgget(cle,0);
+	add_result = add();
+	printf("Result : %ld\n",add_result);
 	break;
 
 	case 1:
+	cle = 200;
+	msqid = msgget(cle,0);
+	mul_result = mul();
+	printf("Result : %f\n",mul_result);
 	break;
 }
 
