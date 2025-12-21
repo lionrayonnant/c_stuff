@@ -5,6 +5,8 @@
 
 #define MAX_SPECTACLE 10
 
+#define DATA_FILE "spectacles.dat"
+
 typedef struct {
     int id;
     char nom[50];
@@ -17,7 +19,7 @@ Spectacle table_spectacles[MAX_SPECTACLE] = {};
 
 void load_spectacles() {
 
-    int fd = open("spectacles.dat", O_RDONLY); //lecture seule
+    int fd = open(DATA_FILE, O_RDONLY); //lecture seule
 
     if (fd == -1) {
         printf("Aucun spectacle n'est disponible pour le moment.\n");
