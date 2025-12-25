@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <string.h>
 
 // Clefs statiques pour la mémoire partagée et les sémaphores
 #define SHM_KEY 1234
@@ -42,10 +43,13 @@ Spectacle table_spectacles[MAX_SPECTACLE] = {
     {10, "Festival musique émergente", "2027-05-10", 30}
 };
 
+int shmid = -1;
+Spectacle *shared_table = NULL;
+
 /* Fonction de sauvegarde des spectacles dans le fichier */
 void save_spectacles() {
     int fd = open(DATA_FILE, O_WRONLY | O_TRUNC | O_CREAT, 0666); // O_TRUNC évite d'écrire à la suite, cela réécris le fichier ; O_CREAT créé le fichier si inexistant
-    write(fd, table_spectacles, sizeof(table_spectacles));
+    write(fd, shared_table, sizeof(table_spectacles));
     close(fd);
 }
 
@@ -53,6 +57,9 @@ int main() {
     int request_view, response_view;
     int request_reservation, request_reservation_nb;
     bool response_reservation;
+
+    shmid = shmget(SHM_KEY, sizeof(table_spectacles), IPC_CREAT | 0666);
+    shared_table = shmat(shmid, NULL, 0);
 
     // Mémoire partagée
     int shmid = shmget(SHM_KEY, sizeof(table_spectacles), IPC_CREAT | 0666);
@@ -63,26 +70,15 @@ int main() {
     // Ouverture des données dans le fichier de data
     int fd = open("spectacles.dat", O_RDONLY); //lecture seule
 
+    // Si le fichier n'existe pas ou est vide, on copie les données d'exemple
     if (fd == -1) {
-        // Création du fichier et utilisation des données d'exemple si inexistant
-        fd = open("spectacles.dat", O_WRONLY | O_CREAT, 0666);
-        write(fd, table_spectacles, sizeof(table_spectacles));
-        ssize_t n = read(fd, shared_table, sizeof(table_spectacles)); // lecture et récupération de la taille du fichier
-        close(fd);
-        printf("[INFO] Fichier créé et initialisé\n");
+        memcpy(shared_table, table_spectacles, sizeof(table_spectacles));
+        // Puis on sauvegarde dans le fichier
+        save_spectacles();
     } else {
-        ssize_t n = read(fd, shared_table, sizeof(table_spectacles));
+        // Sinon, on charge depuis le fichier vers la mémoire partagée
+        read(fd, shared_table, sizeof(table_spectacles));
         close(fd);
-
-        if (n == 0) {
-            // Remplissage du fichier si vide avec des données d'exemple
-            fd = open("spectacles.dat", O_WRONLY | O_TRUNC);
-            ssize_t n = write(fd, table_spectacles, sizeof(table_spectacles));
-            close(fd);
-            printf("[INFO] Fichier vide, données d'exemple ajoutées\n");
-        } else {
-            printf("[INFO] Données chargées depuis le fichier\n");
-        }
     }
 
     // Création des tubes
