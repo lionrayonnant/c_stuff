@@ -1,0 +1,5 @@
+- Semaphores
+- MSQ
+- 2 Threads
+- k threads
+- Sockets
