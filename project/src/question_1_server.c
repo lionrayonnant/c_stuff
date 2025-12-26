@@ -1,16 +1,14 @@
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdbool.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
-#include <string.h>
-#include <semaphore.h>
+// Import des dépendances
+#include <stdio.h> // Pour les E/S (printf ici notamment)
+#include <fcntl.h> // Pour utiliser O_RDONLY, O_WRONLY...
+#include <unistd.h> // Pour effectuer des read() et write(). C'est l'accès à l'API POSIX
+#include <stdlib.h> // Pour exit()
+#include <sys/types.h> // Pour les types, notamment pid_t
+#include <sys/stat.h> // Pour la création des tubes avec mkfifo
+#include <stdbool.h> // Pour utiliser les booléens (dans la réponse au client)
+#include <sys/wait.h> // Pour que le père puisse attendre ses fils
+#include <sys/shm.h> // Pour la gestion de la mémoire partagée
+#include <semaphore.h> // Pour utiliser les sémaphores (et non pas sem.h pour SystemV)
 
 // Clefs statiques pour la mémoire partagée et les sémaphores
 #define SHM_KEY 1234
