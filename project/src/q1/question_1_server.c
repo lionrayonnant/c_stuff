@@ -9,6 +9,7 @@
 #include <sys/wait.h> // Pour que le père puisse attendre ses fils
 #include <sys/shm.h> // Pour la gestion de la mémoire partagée
 #include <semaphore.h> // Pour utiliser les sémaphores (et non pas sem.h pour SystemV)
+#include <string.h> // Pour memcpy
 
 // Clefs statiques pour la mémoire partagée et les sémaphores
 #define SHM_KEY 1234
@@ -55,15 +56,21 @@ void save_spectacles() {
 }
 
 int main() {
+    // Entiers pour la consultation
     int request_view, response_view;
+    // Entiers pour la réservation (requête)
     int request_reservation, request_reservation_nb;
+    // Booléen pour la réponse à la réservation
     bool response_reservation;
 
     // Supprime le sémaphore s'il existe déjà (pour éviter les erreurs)
     sem_unlink("/semaphore");
+    // Ouverture du sémaphore (nommé)
     mutex = sem_open("/semaphore", O_CREAT, 0666, 1);
+    
+    // Création d'un segment de mémoire partagée
     shmid = shmget(SHM_KEY, sizeof(table_spectacles), IPC_CREAT | 0666);
-
+    // Attachement à la mémoire partagée via un cast
     shared_table = (Spectacle *)shmat(shmid, NULL, 0);
 
     // Ouverture des données dans le fichier de data
@@ -124,11 +131,12 @@ int main() {
         int tub4 = open("tub2_reservation", O_RDWR);
         int tub5 = open("tub3_reservation", O_RDWR);
 
-        while(1) {
-        read(tub3, &request_reservation, sizeof(int));
+        while(1) { // Boucle infinie de traitement
+        read(tub3, &request_reservation, sizeof(int)); // Attente d'une donnée transmise
         read(tub4, &request_reservation_nb, sizeof(int));
-        sem_wait(mutex);
+        sem_wait(mutex); // Attente du sémaphore de type mutex
 
+	// Vérification des entrées
         if (request_reservation >= 0 && request_reservation < MAX_SPECTACLE &&
                 request_reservation_nb > 0 && shared_table[request_reservation].places >= request_reservation_nb) {
             

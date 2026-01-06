@@ -1,6 +1,4 @@
-- Enlever SMKEY
-- SystemV / POSIX logic
-- Q1 document
+
 - ftok
 - MSQ
 - 2 Threads
