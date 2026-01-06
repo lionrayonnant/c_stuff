@@ -10,14 +10,13 @@
 #include <sys/shm.h> // Pour la gestion de la mémoire partagée
 #include <semaphore.h> // Pour utiliser les sémaphores (et non pas sem.h pour SystemV)
 #include <string.h> // Pour memcpy
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
+#include <sys/types.h> // Permets d'utiliser les types de données (pid_t...)
+#include <sys/ipc.h> // Permets la gestion des IPCs (ftok...)
+#include <sys/msg.h> // Permets d'utiliser les MSQ
 
 // Types de requêtes
-#define TYPE_CONSUL 1 // Consultation
+#define TYPE_LIST 1 // Consultation
 #define TYPE_RESERV 2 // Réservation
-#define TYPE_LIST   3
 
 // Clefs statiques pour la mémoire partagée et les sémaphores
 #define SHM_KEY 1234
@@ -51,12 +50,16 @@ Spectacle table_spectacles[MAX_SPECTACLE] = {
     {10, "Festival musique émergente", "2027-05-10", 30}
 };
 
+// Déclaration du mutex
 sem_t *mutex;
 
+// Déclaration du segment de mémoire partagée
 int shmid = -1;
+
+// Déclaration du pointeur shared_table vers la structure Spectacle en SHM
 Spectacle *shared_table = NULL;
 
-/* Fonction de sauvegarde des spectacles dans le fichier */
+// Fonction de sauvegarde dans le fichier
 void save_spectacles() {
     int fd = open(DATA_FILE, O_WRONLY | O_TRUNC | O_CREAT, 0666); // O_TRUNC évite d'écrire à la suite, cela réécris le fichier ; O_CREAT créé le fichier si inexistant
     write(fd, shared_table, sizeof(table_spectacles));
@@ -64,21 +67,22 @@ void save_spectacles() {
 }
 
 int main() {
-    // Entiers pour la réservation
-    int request_reservation, request_reservation_nb;
-    // Booléen pour la réponse à la réservation
-    bool response_reservation;
 
+    // Obtention de la clef via ftok
     key_t key = ftok("question_2_server", 42);
+
+    // Rejoindre la MSQ et la créer si inexistante
     int msgid = msgget(key, 0666 | IPC_CREAT);
 
     // Supprime le sémaphore s'il existe déjà (pour éviter les erreurs)
     sem_unlink("/semaphore");
-    // Ouverture du sémaphore (nommé)
+
+    // Ouverture du sémaphore nommé
     mutex = sem_open("/semaphore", O_CREAT, 0666, 1);
     
     // Création d'un segment de mémoire partagée
     shmid = shmget(SHM_KEY, sizeof(table_spectacles), IPC_CREAT | 0666);
+    
     // Attachement à la mémoire partagée via un cast
     shared_table = (Spectacle *)shmat(shmid, NULL, 0);
 
@@ -98,7 +102,7 @@ int main() {
 
     printf("[INFO] Serveur UP\n");
     
-    if (fork() == 0) {
+    if (fork() == 0) { // CONSULTATION
 
         // Demande de la liste
         typedef struct {
@@ -106,6 +110,7 @@ int main() {
             pid_t pid;
         } Request_list;
 
+        // Réponse de la liste
         typedef struct {
             long mtype;
             pid_t pid;
@@ -115,69 +120,37 @@ int main() {
         Request_list request_list;
         Response_list response_list;
 
+        // Boucle infinie de traitement
+
         while(1) {
 
+            // Attente d'un message sur la MSQ
             msgrcv(msgid, &request_list, sizeof(Request_list) - sizeof(long), TYPE_LIST, 0);
 
+            // Préparation de la réponse avec le PID fourni par le client.
             response_list.mtype = request_list.pid;
+            // On précise notre PID
             response_list.pid = getpid();
-            
+
+            // Demande du mutex
             sem_wait(mutex);
+            
+            // Copie du contenu de la mémoire partagée dans la réponse
             memcpy(response_list.spectacles, shared_table, sizeof(table_spectacles));
+
+            // Relâchement du mutex
             sem_post(mutex);
 
+            // Envoi de la réponse
             msgsnd(msgid, &response_list, sizeof(Response_list) - sizeof(long), 0);
     }
-        exit(0);
-    }
-    // Consultation
-
-    if (fork() == 0) { // processus fils -> consultation
-
-        // Définition de la structure pour les consultations
-        typedef struct {
-            long mtype;
-            pid_t pid;
-            int spectacle;
-        } Request_view;
-
-        typedef struct {
-            long mtype;
-            pid_t pid;
-            int nb_places;
-
-        } Response_view;
-        Request_view request_view;
-        Response_view response_view;
-
-        while(1) {
-        
-        msgrcv(msgid, &request_view, sizeof(Request_view) - sizeof(long), TYPE_CONSUL, 0);
-        
-        sem_wait(mutex);
-
-    if (request_view.spectacle >= 0 &&
-        request_view.spectacle < MAX_SPECTACLE &&
-        shared_table[request_view.spectacle].id != 0) {
-
-            response_view.nb_places = shared_table[request_view.spectacle].places;
-            printf("[CONSULTATION] Spectacle %d : %d places\n", request_view.spectacle, response_view.nb_places);
-       } else {
-            printf("[CONSULTATION] Numéro invalide : %d\n", request_view.spectacle);
-        }
-        
-        sem_post(mutex);
-        response_view.mtype = request_view.pid;
-        response_view.pid = getpid();
-        msgsnd(msgid,&response_view, sizeof(Response_view) - sizeof(long), 0);
-        }
-    exit(0); // exit du fils
+    // Exit du fils
+    exit(0);
     }
 
-    // Réservation
+    if (fork() == 0) { // RESERVATION
 
-    if (fork() == 0) { // processus fils -> réservation
-
+        // Requête pour la réservation
         typedef struct {
             long mtype;
             pid_t pid;
@@ -185,6 +158,7 @@ int main() {
             int nb_places;
         } Request_reservation;
 
+        // Réponse pour la réservation
         typedef struct {
             long mtype;
             pid_t pid;
@@ -196,45 +170,76 @@ int main() {
 
         while(1) { // Boucle infinie de traitement
         
-        // attente du msg
+        // Attente d'une requête sur la MSQ
 
         msgrcv(msgid, &request_reservation, sizeof(Request_reservation) - sizeof(long), TYPE_RESERV, 0);
 
-        sem_wait(mutex); // Attente du sémaphore de type mutex
+        // Demande du mutex
 
-	// Vérification des entrées
+        sem_wait(mutex);
+
+	    // Vérification des entrées
         if (request_reservation.spectacle >= 0 && request_reservation.spectacle < MAX_SPECTACLE &&
                 request_reservation.nb_places > 0 && shared_table[request_reservation.spectacle].places >= request_reservation.nb_places
                  && shared_table[request_reservation.spectacle].id != 0) {
             
+            // Décrémentation du nombre de places
             shared_table[request_reservation.spectacle].places -= request_reservation.nb_places;
+
+            // Enregistrement des modifications sur le fichier persistant
             save_spectacles();
+
+            // ACK sur True pour confirmer au client
             response_reservation.ack = true;
+
+            // Affichage d'un message de log
             printf("[RESERVATION] %d places réservées pour spectacle %d.\nPlaces restantes : %d\n",
                    request_reservation.nb_places, request_reservation.spectacle, shared_table[request_reservation.spectacle].places);
         } else {
+
+            // ACK sur False pour infirmer au client
             response_reservation.ack = false;
+
+            // Affichage d'une erreur
             printf("[RESERVATION] Impossible pour le spectacle %d\n",request_reservation.spectacle);
         }
 
+        // Relâchement du mutex
         sem_post(mutex);
 
+        // Défnition du mtype sur le PID du client
         response_reservation.mtype = request_reservation.pid;
+
+        // On mets le PID du serveur dans la réponse
         response_reservation.pid = getpid();
+
+        // Envoi de la réponse sur la MSQ
         msgsnd(msgid,&response_reservation, sizeof(Response_reservation) - sizeof(long), 0);
 
         }
+
+    // Exit du fils
+    exit(0);
     
-    exit(0); // exit du fils
     }
 
     wait(NULL);
     wait(NULL);
 
+    // Destruction de la file de messages
     msgctl(msgid, IPC_RMID, NULL);
+
+    // Suppression de la table partagée
     shmdt(shared_table);
+
+    // Suppression de l'espace de mémoire partagée
     shmctl(shmid, IPC_RMID, NULL);
+
+    // Fermeture du mutex
     sem_close(mutex);
+
+    // Suppression du sémaphore
     sem_unlink("/semaphore");
+    
     return 0;
 }
