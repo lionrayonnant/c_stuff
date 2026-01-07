@@ -180,7 +180,8 @@ int main() {
 
 	    // Vérification des entrées
         if (request_reservation.spectacle >= 0 && request_reservation.spectacle < MAX_SPECTACLE &&
-                request_reservation.nb_places > 0 && shared_table[request_reservation.spectacle].places >= request_reservation.nb_places
+                request_reservation.nb_places > 0 
+		&& shared_table[request_reservation.spectacle].places >= request_reservation.nb_places
                  && shared_table[request_reservation.spectacle].id != 0) {
             
             // Décrémentation du nombre de places
@@ -194,7 +195,8 @@ int main() {
 
             // Affichage d'un message de log
             printf("[RESERVATION] %d places réservées pour spectacle %d.\nPlaces restantes : %d\n",
-                   request_reservation.nb_places, request_reservation.spectacle, shared_table[request_reservation.spectacle].places);
+                   request_reservation.nb_places, request_reservation.spectacle,
+		   shared_table[request_reservation.spectacle].places);
         } else {
 
             // ACK sur False pour infirmer au client
