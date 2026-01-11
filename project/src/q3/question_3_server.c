@@ -12,7 +12,7 @@
 #include <string.h> // Pour memcpy
 #include <sys/ipc.h> // Permets la gestion des IPCs (ftok...)
 #include <sys/msg.h> // Permets d'utiliser les MSQ
-#include <pthread.h> //RD// Permets d'utiliser les threads
+#include <pthread.h> // Permets d'utiliser les threads
 
 // Types de requêtes
 #define TYPE_LIST 1 // Consultation
@@ -197,11 +197,8 @@ int main() {
         close(fd);
     }
 
-    // Création des threads
-    pthread_t thread_consult, thread_reserv;
-
     // Obtention de la clef via ftok
-    key_t key = ftok("question_2_server", 42);
+    key_t key = ftok("question_3_server", 42);
 
     // Rejoindre la MSQ et la créer si inexistante
     int msgid = msgget(key, 0666 | IPC_CREAT);
@@ -209,12 +206,17 @@ int main() {
     // Initialisation du mutex
     sem_init(&mutex, 0, 1); // pshared = 0 => threads uniquement
     
-    // Création des threads
+    // Déclaration des threads
+    pthread_t thread_consult, thread_reserv;
+
+    // Création et lancement des threads
     pthread_create(&thread_consult, NULL, thread_consultation, &msgid);
     pthread_create(&thread_reserv, NULL, thread_reservation, &msgid);
 
     printf("[INFO] Serveur UP\n");
 
+    // Attente de la fin des threads
+    
     pthread_join(thread_consult, NULL);
     pthread_join(thread_reserv, NULL);
 

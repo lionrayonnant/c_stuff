@@ -59,7 +59,7 @@ int main() {
     int index, nb_places;
 
     // ftok pour générer la clef
-    key_t key = ftok("question_3_server", 42);
+    key_t key = ftok("question_4_server", 42);
 
     // On rejoins la MSQ
     int msgid = msgget(key, 0666 | IPC_CREAT);
