@@ -7,6 +7,8 @@
 #include <pthread.h> // Permets d'utiliser les threads
 #include <semaphore.h> // Pour utiliser les sémaphores (et non pas sem.h pour SystemV)
 #include <netinet/in.h> // Pour utiliser AF_INET et AF_INET6
+#include <sys/socket.h> // Pour socket(), bind()...
+#include <arpa/inet.h>  // inet_addr (pour convertir les ip)
 
 // Définition du port pour le socket
 #define PORT 5000
@@ -161,7 +163,7 @@ int main() {
     // Bascule le serveur en écoute
     listen(server_fd, 10);
 
-    // Initialise le serveur
+    // Initialise le sémaphore
     sem_init(&mutex, 0, 1);
 
     // Message de log

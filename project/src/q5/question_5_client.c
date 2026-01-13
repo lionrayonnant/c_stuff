@@ -5,6 +5,8 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h> // Pour socket(), bind()...
+#include <arpa/inet.h>  // inet_addr (pour convertir les ip)
 
 // Port utilisé pour le socket
 #define PORT 5000
