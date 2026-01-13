@@ -4,7 +4,6 @@
 #include <unistd.h> // Pour effectuer des read() et write(). C'est l'accès à l'API POSIX
 #include <stdlib.h> // Pour exit()
 #include <sys/types.h> // Pour les types, notamment pid_t
-#include <sys/stat.h> // Pour la création des tubes avec mkfifo
 #include <stdbool.h> // Pour utiliser les booléens (dans la réponse au client)
 #include <sys/wait.h> // Pour que le père puisse attendre ses fils
 #include <sys/shm.h> // Pour la gestion de la mémoire partagée
