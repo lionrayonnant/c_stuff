@@ -1,15 +1,14 @@
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdbool.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
-#include <string.h>
+// Import des dépendances
+#include <stdio.h> // Pour les E/S (printf ici notamment)
+#include <fcntl.h> // Pour utiliser O_RDONLY, O_WRONLY...
+#include <unistd.h> // Pour effectuer des read() et write(). C'est l'accès à l'API POSIX
+#include <stdlib.h> // Pour exit()
+#include <sys/types.h> // Pour les types, notamment pid_t
+#include <sys/stat.h> // Pour la création des tubes avec mkfifo
+#include <stdbool.h> // Pour utiliser les booléens (dans la réponse au client)
+#include <sys/wait.h> // Pour que le père puisse attendre ses fils
+#include <sys/shm.h> // Pour la gestion de la mémoire partagée
+#include <semaphore.h> // Pour utiliser les sémaphores (et non pas sem.h pour SystemV)
 
 // Clefs statiques pour la mémoire partagée et les sémaphores
 #define SHM_KEY 1234
@@ -43,6 +42,8 @@ Spectacle table_spectacles[MAX_SPECTACLE] = {
     {10, "Festival musique émergente", "2027-05-10", 30}
 };
 
+sem_t *mutex;
+
 int shmid = -1;
 Spectacle *shared_table = NULL;
 
@@ -58,18 +59,16 @@ int main() {
     int request_reservation, request_reservation_nb;
     bool response_reservation;
 
+    // Supprime le sémaphore s'il existe déjà (pour éviter les erreurs)
+    sem_unlink("/semaphore");
+    mutex = sem_open("/semaphore", O_CREAT, 0666, 1);
     shmid = shmget(SHM_KEY, sizeof(table_spectacles), IPC_CREAT | 0666);
-    shared_table = shmat(shmid, NULL, 0);
 
-    // Mémoire partagée
-    int shmid = shmget(SHM_KEY, sizeof(table_spectacles), IPC_CREAT | 0666);
-
-    // Attachement à la mémoire partagée avec un cast pour traiter correctement la donnée
-    Spectacle *shared_table = (Spectacle *)shmat(shmid, NULL, 0);
+    shared_table = (Spectacle *)shmat(shmid, NULL, 0);
 
     // Ouverture des données dans le fichier de data
     int fd = open("spectacles.dat", O_RDONLY); //lecture seule
-
+    
     // Si le fichier n'existe pas ou est vide, on copie les données d'exemple
     if (fd == -1) {
         memcpy(shared_table, table_spectacles, sizeof(table_spectacles));
@@ -98,8 +97,9 @@ int main() {
         int tub2 = open("tub2_view", O_RDWR);
 
         while(1) {
-        
         read(tub1, &request_view, sizeof(int));
+        
+        sem_wait(mutex);
 
         if (request_view >= 0 && request_view < MAX_SPECTACLE) {
             response_view = shared_table[request_view].places;
@@ -107,8 +107,10 @@ int main() {
        } else {
             printf("[CONSULTATION] Numéro invalide : %d\n", request_view);
         }
-        write(tub2, &response_view, sizeof(int));
         
+        sem_post(mutex);
+        
+        write(tub2, &response_view, sizeof(int));
         }
     close(tub1); close(tub2);
     exit(0); // exit du fils
@@ -123,13 +125,13 @@ int main() {
         int tub5 = open("tub3_reservation", O_RDWR);
 
         while(1) {
-            
         read(tub3, &request_reservation, sizeof(int));
         read(tub4, &request_reservation_nb, sizeof(int));
+        sem_wait(mutex);
 
         if (request_reservation >= 0 && request_reservation < MAX_SPECTACLE &&
                 request_reservation_nb > 0 && shared_table[request_reservation].places >= request_reservation_nb) {
-
+            
             shared_table[request_reservation].places -= request_reservation_nb;
             save_spectacles();
             response_reservation = true;
@@ -140,8 +142,9 @@ int main() {
             printf("[RESERVATION] Impossible pour le spectacle %d\n",request_reservation);
         }
 
+        sem_post(mutex);
+
         write(tub5, &response_reservation, sizeof(bool));
-        
         }
     close(tub3); close(tub4); close(tub5);
     exit(0); // exit du fils
@@ -152,6 +155,7 @@ int main() {
 
     shmdt(shared_table);
     shmctl(shmid, IPC_RMID, NULL);
-
+    sem_close(mutex);
+    sem_unlink("/semaphore");
     return 0;
 }
